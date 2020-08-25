@@ -13,8 +13,9 @@ if(!empty($_POST)){
     ){
         // On vérifie la validité de l'email
         if(!filter_var($_POST['formmail'], FILTER_VALIDATE_EMAIL)){
-            die('email invalide');
+            $_SESSION['message'][] = 'email invalide';
             header ('Location: index.php');
+            exit;
         }else{
             $mailusers = $_POST['formmail'];
         }
@@ -35,7 +36,9 @@ if(!empty($_POST)){
         $user = $query->fetch(PDO::FETCH_ASSOC);
         
         if(!$user){
-            die('Email et/ou mdp incorrect');
+            $_SESSION['message'][] = 'email et/ou mot de passe invalide';
+            header ('Location: connexion.php');
+            exit;
         } 
 
         if(password_verify($_POST['formpass'], $user['password'])){
@@ -67,7 +70,7 @@ if(!empty($_POST)){
                 [
                     'samesite' => 'Strict',
                     'expires' => strtotime('+1 year'),
-                    'path' => '/blog'
+                    'path' => '/CRUD'
                 ]);
 
             }
@@ -78,8 +81,8 @@ if(!empty($_POST)){
             echo "Email et / ou mdp incorrect";
         }
     }else{
-        $erreur = "Formulaire incomplet";
-        echo $erreur;
+        $_SESSION['message'][] = 'email/ et ou mot de passe invalide';
+            
     }
     
  

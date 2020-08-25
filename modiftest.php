@@ -5,22 +5,36 @@ use PHPMailer\PHPMailer\Exception;
 require_once 'inc/header.php';
 require_once 'inc/nav.php';
 
+// On vérifie si on a un id dans l'URL
+if(isset($_GET['id']) && !empty($_GET['id'])){
 
+    // On a un id, on va chercher la category dans la base
+    // On se connecte
+    require_once 'inc/connect.php';
+    $sql = "SELECT * FROM `annonces` WHERE `id` = :id";
+     
+    // On prepare la requete
+    $query = $db->prepare($sql);
 
+    //On accroche les valeurs aux parametres
+    $query->bindValue(':id', $_GET['id'], PDO::PARAM_INT);
 
-// Transforme une STRING ( chaine de carac "json" en tableau PHP )
+    //On exécute la requete
+    $query->execute();
 
-if(!isset($_SESSION['user'])){
-    header('Location:'.URL.'connexion.php');
+    //On récupère les données
+    $annonce = $query->fetch(PDO::FETCH_ASSOC);
+
+    if(!$annonce){
+        // annonce est vide (false)
+        header('Location: '. URL);
+        exit;
+    }
+
+}else{
+    // Pas d'id ou id vide, on retourne à la page index
+    header('Location: '. URL);
 }
-// $roles = json_decode($_SESSION['user']['roles']);  // On json_decode car 'user''roles' viens de la DB et est en json.
-// if(!in_array("ROLE_ADMIN", $roles)){
-//         header('Location:'.URL);
-// }
-
-require_once 'inc/connect.php';
-
-
 
 // POST n'est pas vide, on vérifie TOUS les champs obligatoires
 if(!empty($_POST)){
@@ -45,9 +59,8 @@ if(!empty($_POST)){
             $_SESSION['message'][] = "Le prix est incorrect";
         }
         
-        $nomImage = null;
-
-
+        // On récupère le nom de l'image dans la base
+        $nomImage = $annonce['featured_image'];
         // On récupère et on stocke l'image si elle existe
         if(
             isset($_FILES['image']) && !empty($_FILES['image']) && $_FILES['image']['error'] != UPLOAD_ERR_NO_FILE)
@@ -92,6 +105,22 @@ if(!empty($_POST)){
                 exit;
             }
             
+            // Je récupère l'ancienne image
+            $ancienne = $annonce['featured_image'];
+
+            // Je supprime le fichier
+            unlink(__DIR__ . '/uploads/' . $ancienne);
+            
+            // Et ses images redimenssionées
+            $nomFichier = pathinfo($ancienne, PATHINFO_FILENAME);
+            $extension = pathinfo($ancienne, PATHINFO_EXTENSION);
+
+            $mini = __DIR__ . "/uploads/".$nomFichier."-300x300.".$extension;
+            $mini2 = __DIR__ . "/uploads/".$nomFichier."-200x200.".$extension;
+
+            unlink($mini);
+            unlink($mini2);
+
             mini(__DIR__.'/uploads/'.$nomImage, 200);
             mini(__DIR__.'/uploads/'.$nomImage, 300);    
         }
@@ -102,57 +131,56 @@ if(!empty($_POST)){
         //    }
 
         // On ecrit la requete
-        $sql = "INSERT INTO `annonces` (`title`, `content`, `users_id`, `categories_id`, `featured_image`, `departements_number`, `price`) 
-                VALUES (:anntitre, :anncontent, :user, :anncat, :nomimage, :anndep, :annprix);";
-        
+            $sql = "UPDATE `annonces` SET `title` = :anntitre, `content` = :anncontent, `featured_image` = :nomimage, `departements_number` = :anndep, `categories_id` = :anncat, `price` = :annprix WHERE `annonces`.`id` = {$annonce['id']};";
+
         // On prépare la requête
         $query = $db->prepare($sql);
 
         // On injecte les valeurs dans les paramètres
         $query->bindValue(':anntitre', $anntitre, PDO::PARAM_STR);
         $query->bindValue(':anncontent', $anncontent, PDO::PARAM_STR);
-        $query->bindValue(':user', $_SESSION['user']['id'], PDO::PARAM_INT);
         $query->bindValue(':anncat', $_POST['formcat'], PDO::PARAM_INT);
         $query->bindValue(':nomimage', $nomImage, PDO::PARAM_STR);
         $query->bindValue(':anndep', $_POST['formdep'], PDO::PARAM_STR);
         $query->bindValue(':annprix', $_POST['formprix'], PDO::PARAM_STR);        
         
         
+        
         // On execute la requête
         $query->execute();
 
-        require_once 'inc/config-mail.php';
+        // require_once 'inc/config-mail.php';
         
-        // Ce fichier enverra un mail dès son chargement
-        try{
-            // On définit l'expéditeur du mail
-            $sendmail->setFrom('no-reply@mondommaine.fr', 'Blog');
+        // // Ce fichier enverra un mail dès son chargement
+        // try{
+        //     // On définit l'expéditeur du mail
+        //     $sendmail->setFrom('no-reply@mondommaine.fr', 'Blog');
 
-            // On définit le/les destinataire(s)
-            $sendmail->addAddress('admin@mondomaine.fr', 'Admin');
+        //     // On définit le/les destinataire(s)
+        //     $sendmail->addAddress('admin@mondomaine.fr', 'Admin');
 
-            // On définit le sujet du mail
-            $sendmail->Subject = 'Un article à été ajouté';
+        //     // On définit le sujet du mail
+        //     $sendmail->Subject = 'Un article à été ajouté';
 
-            // On active le HTML
-            $sendmail->isHTML();
+        //     // On active le HTML
+        //     $sendmail->isHTML();
 
-            // On écrit le contenu du mail
-            // En HTML
-            $sendmail->Body = "<h1>Message de Blog</h1>
-                               <p>L'article \"$anntitre\" viens d'être ajouté par {$_SESSION['user']['nickname']}</p>";
+        //     // On écrit le contenu du mail
+        //     // En HTML
+        //     $sendmail->Body = "<h1>Message de Blog</h1>
+        //                        <p>L'article \"$anntitre\" viens d'être ajouté par {$_SESSION['user']['nickname']}</p>";
 
-            // En texte brut
-            $sendmail->AltBody = "L'article \"$anntitre\" viens d'être ajouté par {$_SESSION['user']['nickname']}";
+        //     // En texte brut
+        //     $sendmail->AltBody = "L'article \"$anntitre\" viens d'être ajouté par {$_SESSION['user']['nickname']}";
 
-            // On envoie le mail
-            $sendmail->send();
-            // echo "Mail envoyé";
+        //     // On envoie le mail
+        //     $sendmail->send();
+        //     // echo "Mail envoyé";
 
-        }catch(Exception $e){
-            // Ici le mail n'est pas parti
-            echo 'Erreur : ' . $e->errorMessage();
-        }
+        // }catch(Exception $e){
+        //     // Ici le mail n'est pas parti
+        //     echo 'Erreur : ' . $e->errorMessage();
+        // }
 
         header('Location:'.URL);
         exit;
@@ -162,8 +190,8 @@ if(!empty($_POST)){
 
     }
     
-
 }
+
 
 
 $sql = "SELECT * FROM `categories` ORDER BY `name` ASC";
@@ -193,7 +221,7 @@ $departements = $query->fetchAll(PDO::FETCH_ASSOC);
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
         integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
 
-    <title>Ajout d'article</title>
+    <title>Modifier d'article</title>
 </head>
 
 <body>
@@ -202,19 +230,19 @@ $departements = $query->fetchAll(PDO::FETCH_ASSOC);
         <div class="form-group">
             <label for="Title">Titre</label>
             <input type="text" class="form-control" id="Title" name="formtitre"
-                value="<?= isset($_SESSION['form']['formtitre']) ? $_SESSION['form']['formtitre'] : "" ?>">
+                value="<?= $annonce['title'] ?>">
         </div>
 
         <div class="form-group">
             <label for="Content">Contenu</label>
             <textarea class="form-control" id="Content" name="formcontent"
-                rows="3"><?= !empty($_SESSION['form']['formcontent']) ? $_SESSION['form']['formcontent'] : "" ?></textarea>
+                rows="3"><?= $annonce['content'] ?></textarea>
         </div>
 
         <div class="form-group">
             <label for="Prix">Prix ?</label>
             <input type="number" step="0.01" min="0" class="form-control" id="Prix" name="formprix"
-                value="<?= isset($_SESSION['form']['formprix']) ? $_SESSION['form']['formprix'] : "" ?>">
+                value="<?= $annonce['price'] ?>">
         </div>
 
         <div class="form-group">
@@ -222,15 +250,8 @@ $departements = $query->fetchAll(PDO::FETCH_ASSOC);
             <select class="form-control" id="Categorie" name="formcat" required>
                 <option value="">-- Choisir une catégorie --</option>
                 <?php foreach($categories as $categorie): ?>
-                <option value="<?= $categorie['id'] ?>" <?php
-                    if(isset($_SESSION['form']['formcat']) && $_SESSION['form']['formcat'] == $categorie['id'])
-                    {
-                        echo "selected";
-                    }
-                ?>>
-
-
-                    <?= $categorie['name'] ?></option>
+                <option value="<?= $categorie['id'] ?>"<?= $annonce['categories_id'] == $categorie['id'] ? "selected" : "" ?>>
+                <?= $categorie['name'] ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -240,14 +261,8 @@ $departements = $query->fetchAll(PDO::FETCH_ASSOC);
             <select class="form-control" id="departement" name="formdep" required>
                 <option value="">-- Choisir un département --</option>
                 <?php foreach($departements as $departement): ?>
-                <option value="<?= $departement['number'] ?>" <?php
-                    if(isset($_SESSION['form']['formdep']) && $_SESSION['form']['formdep'] == $departement['number'])
-                    {
-                        echo "selected";
-                    }
-                ?>>
-
-
+                <option value="<?= $departement['number'] ?>"<?= $annonce['departements_number'] == $departement['number'] ? "selected" : "" ?>>
+                    
                     <?= $departement['name'] ?></option>
                 <?php endforeach; ?>
             </select>

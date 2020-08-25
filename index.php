@@ -50,8 +50,8 @@ $annonces = $query->fetchAll(PDO::FETCH_ASSOC);
     $imgAnnonce = "$nomAnnonce-300x300.$extAnnonce";
 ?>
 
-                    <img src="<?= URL . '/uploads/' . $imgAnnonce ?>" class="card-img-top"
-                        alt="<?= $annonce['featured_image'] ?>">
+                    <a href="annonces.php?id=<?= $annonce['id'] ?>"><img src="<?= URL . '/uploads/' . $imgAnnonce ?>" class="card-img-top"
+                        alt="<?= $annonce['featured_image'] ?>"></a>
 
                     <?php endif; ?>
 
@@ -69,6 +69,8 @@ $annonces = $query->fetchAll(PDO::FETCH_ASSOC);
                         <h6 class="card-subtitle mb-2 text-muted"> <?= "Catégorie ".$annonce['catname'] ?></h6>
 
                         <p class="card-text"><?= extrait($annonce['content'], 150) ?></p>
+
+                        <a href="modiftest.php?id=<?= $annonce['id'] ?>" class="btn btn-primary">Modifier</a>
 
                     </div>
                 </div>
