@@ -16,6 +16,8 @@ $query = $db->query($sql);
 
 $annonces = $query->fetchAll(PDO::FETCH_ASSOC);
 
+
+
 ?>
 
 
